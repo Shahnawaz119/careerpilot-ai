@@ -3,6 +3,7 @@ from PyPDF2 import PdfReader
 from openai import OpenAI
 import matplotlib.pyplot as plt
 from fpdf import FPDF
+import streamlit as st
 import random
 import time
 
@@ -18,7 +19,7 @@ st.set_page_config(
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key="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"
+    api_key=st.secrets["OPENROUTER_API_KEY"]
 )
 
 # ---------------- CUSTOM CSS ----------------

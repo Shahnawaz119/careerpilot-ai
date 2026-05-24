@@ -3,12 +3,9 @@ from PyPDF2 import PdfReader
 from openai import OpenAI
 import matplotlib.pyplot as plt
 from fpdf import FPDF
-import streamlit as st
 import random
 import time
 import os
-
-
 
 # ---------------- PAGE CONFIG ----------------
 
@@ -170,18 +167,6 @@ section[data-testid="stSidebar"] {
     padding: 20px;
 }
 
-/* Buttons */
-
-.stButton>button {
-    background: linear-gradient(90deg,#06b6d4,#3b82f6);
-    color: white;
-    border-radius: 10px;
-    height: 50px;
-    border: none;
-    width: 100%;
-    font-size: 18px;
-}
-
 /* Metrics */
 
 [data-testid="metric-container"] {
@@ -240,7 +225,6 @@ with st.sidebar:
     ✅ AI Chat Assistant  
     ✅ PDF Report Download  
     """)
-
     st.markdown("""
     <div style="
         background: linear-gradient(135deg,#0f172a,#1e3a8a);
@@ -287,7 +271,9 @@ def stream_text(text):
 
     for word in text.split():
         yield word + " "
-        time.sleep(0.02)
+        time.sleep(0.01)
+
+# ---------------- MAIN ----------------
 
 # ---------------- MAIN ----------------
 
@@ -302,74 +288,44 @@ if uploaded_file:
         ["Google", "Microsoft", "Amazon", "TCS", "Infosys"]
     )
 
-    # ---------------- METRICS ----------------
-
-    ats_score = random.randint(75, 95)
-    confidence = random.randint(85, 99)
-    skills_found = random.randint(8, 15)
-    match_score = random.randint(70, 95)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("ATS Score", f"{ats_score}%")
-    col2.metric("AI Confidence", f"{confidence}%")
-    col3.metric("Skills Found", skills_found)
-    col4.metric(f"{company} Match", f"{match_score}%")
-
-    st.progress(ats_score / 100)
-
-    # ---------------- CAREER SUGGESTIONS ----------------
-
-    career_roles = []
-
-    resume_lower = resume_text.lower()
-
-    if "python" in resume_lower or "machine learning" in resume_lower:
-        career_roles.extend([
-            "AI Engineer",
-            "Machine Learning Engineer",
-            "Data Scientist"
-        ])
-
-    if "html" in resume_lower or "css" in resume_lower or "javascript" in resume_lower:
-        career_roles.extend([
-            "Frontend Developer",
-            "Web Developer"
-        ])
-
-    if "sql" in resume_lower or "database" in resume_lower:
-        career_roles.extend([
-            "Backend Developer",
-            "Database Analyst"
-        ])
-
-    if "java" in resume_lower or "c++" in resume_lower:
-        career_roles.extend([
-            "Software Engineer",
-            "Application Developer"
-        ])
-
-    if len(career_roles) == 0:
-        career_roles = [
-            "Software Developer",
-            "IT Analyst",
-            "Technical Support Engineer"
-        ]
-
     # ---------------- AI PROMPT ----------------
 
     prompt = f"""
-    You are an advanced AI Career Assistant.
+    You are an advanced AI Resume Analyzer and ATS System.
 
-    Analyze this resume and provide:
+    Analyze the uploaded resume carefully like a real ATS checker.
 
-    1. Candidate Skills
-    2. Missing Skills
-    3. Best Job Roles
-    4. Resume Improvement Suggestions
-    5. 10 Interview Questions
-    6. 30-Day Learning Roadmap
-    7. Best Platforms To Learn Missing Skills
+    IMPORTANT RULES:
+
+    1. ATS score must be realistic.
+    2. Weak resumes should get 45-65.
+    3. Average resumes should get 65-78.
+    4. Strong resumes should get 78-88.
+    5. Exceptional resumes should get 88-95 only.
+    6. Analyze projects, internships, skills, certifications, achievements and resume quality.
+
+    Return response ONLY in this format:
+
+    ATS_SCORE:
+    (Realistic ATS score with reason)
+
+    SKILLS:
+    (List technical + soft skills)
+
+    MISSING_SKILLS:
+    (List missing skills)
+
+    CAREER_SUGGESTIONS:
+    (Suggest career roles ONLY based on resume)
+
+    INTERVIEW_QUESTIONS:
+    (Generate interview questions ONLY based on resume projects + skills)
+
+    LEARNING_RESOURCES:
+    (Suggest learning resources based on missing skills)
+
+    ROADMAP:
+    (Create personalized roadmap)
 
     Resume:
     {resume_text}
@@ -391,30 +347,178 @@ if uploaded_file:
 
         result = completion.choices[0].message.content
 
-    # ---------------- SKILL GRAPH ----------------
+    # ---------------- PARSING ----------------
 
-    skills = {
-        "Python": random.randint(70, 95),
-        "SQL": random.randint(60, 90),
-        "Communication": random.randint(65, 95),
-        "Problem Solving": random.randint(75, 98),
-        "AI/ML": random.randint(50, 90),
-    }
+    try:
 
-    # ---------------- INTERVIEW QUESTIONS ----------------
+        ats_section = result.split("ATS_SCORE:")[1].split("SKILLS:")[0]
 
-    interview_questions = [
-        "Explain OOP concepts in Python.",
-        "Difference between SQL and NoSQL?",
-        "What is API?",
-        "Explain DBMS normalization.",
-        "What is Machine Learning?",
-        "Explain REST API.",
-        "Difference between Stack and Queue?",
-        "What is OS scheduling?",
-        "Explain your projects.",
-        "Why should we hire you?"
+        skills_section = result.split("SKILLS:")[1].split("MISSING_SKILLS:")[0]
+
+        missing_section = result.split("MISSING_SKILLS:")[1].split("CAREER_SUGGESTIONS:")[0]
+
+        career_section = result.split("CAREER_SUGGESTIONS:")[1].split("INTERVIEW_QUESTIONS:")[0]
+
+        interview_section = result.split("INTERVIEW_QUESTIONS:")[1].split("LEARNING_RESOURCES:")[0]
+
+        learning_section = result.split("LEARNING_RESOURCES:")[1].split("ROADMAP:")[0]
+
+        roadmap_section = result.split("ROADMAP:")[1]
+
+    except:
+
+        st.error("⚠️ AI Response Parsing Error")
+        st.write(result)
+        st.stop()
+
+    # ---------------- REALISTIC ATS SCORE ----------------
+
+    resume_lower = resume_text.lower()
+
+    ats_number = 35
+
+    # ---------------- SKILLS ----------------
+
+    tech_skills = [
+        "python", "java", "c++", "sql", "html",
+        "css", "javascript", "react", "node",
+        "machine learning", "tensorflow",
+        "pandas", "numpy", "streamlit",
+        "mongodb", "api", "git", "github"
     ]
+
+    matched_skills = []
+
+    for skill in tech_skills:
+
+        if skill in resume_lower:
+            matched_skills.append(skill)
+
+    ats_number += min(len(matched_skills) * 2, 18)
+
+    # ---------------- PROJECTS ----------------
+
+    project_keywords = [
+        "project",
+        "developed",
+        "built",
+        "created",
+        "implemented",
+        "designed"
+    ]
+
+    project_score = 0
+
+    for word in project_keywords:
+
+        if word in resume_lower:
+            project_score += 1
+
+    ats_number += min(project_score * 2, 10)
+
+    # ---------------- EXPERIENCE ----------------
+
+    experience_keywords = [
+        "internship",
+        "intern",
+        "experience"
+    ]
+
+    experience_score = 0
+
+    for word in experience_keywords:
+
+        if word in resume_lower:
+            experience_score += 1
+
+    ats_number += min(experience_score * 4, 12)
+
+    # ---------------- CERTIFICATIONS ----------------
+
+    cert_keywords = [
+        "certification",
+        "certificate",
+        "coursera",
+        "udemy",
+        "nptel"
+    ]
+
+    cert_score = 0
+
+    for word in cert_keywords:
+
+        if word in resume_lower:
+            cert_score += 1
+
+    ats_number += min(cert_score * 2, 8)
+
+    # ---------------- ACHIEVEMENTS ----------------
+
+    achievement_keywords = [
+        "leetcode",
+        "hackathon",
+        "award",
+        "winner",
+        "achievement"
+    ]
+
+    achievement_score = 0
+
+    for word in achievement_keywords:
+
+        if word in resume_lower:
+            achievement_score += 1
+
+    ats_number += min(achievement_score * 2, 8)
+
+    # ---------------- RESUME LENGTH ----------------
+
+    resume_length = len(resume_text)
+
+    if resume_length > 3500:
+        ats_number += 5
+
+    elif resume_length > 2200:
+        ats_number += 3
+
+    elif resume_length < 1200:
+        ats_number -= 8
+
+    # ---------------- CONTACT DETAILS ----------------
+
+    if "linkedin" in resume_lower:
+        ats_number += 2
+
+    if "github" in resume_lower:
+        ats_number += 2
+
+    if "@" in resume_lower:
+        ats_number += 2
+
+    # ---------------- FINAL LIMIT ----------------
+
+    if ats_number > 90:
+        ats_number = 90
+
+    if ats_number < 45:
+        ats_number = 45
+
+    # ---------------- METRICS ----------------
+
+    confidence = random.randint(85, 97)
+
+    skills_found = len(matched_skills)
+
+    match_score = min(ats_number + random.randint(-2, 3), 92)
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("ATS Score", f"{ats_number}%")
+    col2.metric("AI Confidence", f"{confidence}%")
+    col3.metric("Skills Found", skills_found)
+    col4.metric(f"{company} Match", f"{match_score}%")
+
+    st.progress(ats_number / 100)
 
     # ---------------- TABS ----------------
 
@@ -433,9 +537,13 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-        st.subheader("📌 AI Career Report")
+        st.subheader("📌 Resume Skills")
 
-        st.write_stream(stream_text(result))
+        st.write_stream(stream_text(skills_section))
+
+        st.subheader("❌ Missing Skills")
+
+        st.write_stream(stream_text(missing_section))
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -445,9 +553,17 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
+        skill_data = {
+            "Technical": min(len(matched_skills) * 10, 100),
+            "Projects": min(project_score * 15, 100),
+            "Experience": min(experience_score * 25, 100),
+            "Achievements": min(achievement_score * 20, 100),
+            "Resume Quality": ats_number
+        }
+
         fig, ax = plt.subplots()
 
-        ax.bar(skills.keys(), skills.values())
+        ax.bar(skill_data.keys(), skill_data.values())
 
         st.pyplot(fig)
 
@@ -459,10 +575,9 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-        st.subheader("💼 Recommended Career Roles")
+        st.subheader("💼 Personalized Career Suggestions")
 
-        for role in career_roles:
-            st.write("✅", role)
+        st.write_stream(stream_text(career_section))
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -472,10 +587,9 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-        st.subheader("🎤 AI Generated Interview Questions")
+        st.subheader("🎤 Personalized Interview Questions")
 
-        for q in interview_questions:
-            st.write("✅", q)
+        st.write_stream(stream_text(interview_section))
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -485,27 +599,9 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-        st.subheader("📚 Recommended Learning Platforms")
+        st.subheader("📚 Personalized Learning Resources")
 
-        st.markdown("""
-### 🐍 Python & AI
-- https://www.coursera.org/
-- https://www.freecodecamp.org/
-- https://www.deeplearning.ai/
-
-### 💻 DSA & Coding
-- https://leetcode.com/
-- https://www.geeksforgeeks.org/
-- https://neetcode.io/
-
-### 🌐 Web Development
-- https://developer.mozilla.org/
-- https://www.w3schools.com/
-
-### ☁️ Cloud & DevOps
-- https://explore.skillbuilder.aws/
-- https://www.cloudskillsboost.google/
-        """)
+        st.write_stream(stream_text(learning_section))
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -515,29 +611,9 @@ if uploaded_file:
 
         st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-        st.subheader("🛣️ 30-Day Learning Roadmap")
+        st.subheader("🛣️ Personalized Roadmap")
 
-        st.write("""
-### Week 1
-- Python Revision
-- DSA Basics
-- SQL Fundamentals
-
-### Week 2
-- DBMS + OS
-- Resume Improvement
-- Build Mini Projects
-
-### Week 3
-- APIs + Deployment
-- Mock Interviews
-- AI/ML Basics
-
-### Week 4
-- Advanced Projects
-- LinkedIn Optimization
-- Interview Preparation
-        """)
+        st.write_stream(stream_text(roadmap_section))
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -563,36 +639,6 @@ if uploaded_file:
             file_name="career_report.pdf",
             mime="application/pdf"
         )
-
-# ---------------- CHATBOT ----------------
-
-st.markdown("---")
-
-st.subheader("💬 Ask CareerPilot AI")
-
-user_question = st.chat_input(
-    "Ask about career, interviews, roadmap..."
-)
-
-if user_question:
-
-    with st.spinner("🤖 Thinking..."):
-
-        response = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "user",
-                    "content": user_question
-                }
-            ]
-        )
-
-        answer = response.choices[0].message.content
-
-    with st.chat_message("assistant"):
-        st.write(answer)
-
 # ---------------- FOOTER ----------------
 
 st.markdown("---")

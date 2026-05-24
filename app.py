@@ -6,6 +6,9 @@ from fpdf import FPDF
 import streamlit as st
 import random
 import time
+import os
+
+
 
 # ---------------- PAGE CONFIG ----------------
 
@@ -19,7 +22,7 @@ st.set_page_config(
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=st.secrets["OPENROUTER_API_KEY"]
+    api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
 # ---------------- CUSTOM CSS ----------------
